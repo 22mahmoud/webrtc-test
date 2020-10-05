@@ -1,40 +1,6 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import io from 'socket.io-client';
-
-function useInput(intialValue = '') {
-  const ref = useRef();
-  const [value, setValue] = useState(intialValue);
-  const [inputError, setInputError] = useState('');
-
-  const handleOnChange = useCallback((event) => {
-    const _value = event.target.value
-    setValue(_value);
-    if (inputError && _value.trim().length >= 1) {
-      setInputError('');
-    }
-  }, [inputError]);
-
-  const handleOnBlur = useCallback(() => {
-    if (value.trim().length === 0){
-      setInputError('Please enter valid room name');
-    } else {
-      setInputError('');
-    }
-  }, [value]);
-
-  const data = useMemo(() => [
-    value, 
-    inputError, 
-    {
-      onChange: handleOnChange, 
-      onBlur: handleOnBlur, 
-      setInputError,
-      ref 
-    },
-  ], [inputError, value, handleOnBlur, handleOnChange]);
-
-  return data;
-}
 
 const streamConstraints =  {
   video: true,
@@ -52,16 +18,10 @@ const socket = io(process.env.NODE_ENV === 'development' ?
   'http://localhost:5000' : 
   'https://webrtc-22mahmoud.herokuapp.com/');
 
-function App() {
+
+const Room = () => {
+  const { id: room } = useParams();
   const pc = useRef(new RTCPeerConnection(iceServer));
-
-  const [
-    room, 
-    roomInputError, 
-    { ref: roomInputRef, setInputError: setRoomInputError, ...handlers }
-  ] = useInput('');
-
-  const [inCall, setInCall] = useState(() => !!room);
   const isCaller = useRef(false);
   const localStream = useRef();
   const localVideo = useRef();
@@ -104,7 +64,7 @@ function App() {
       sdp: offer,
       room,
     });
-  }, [room, localStream]);
+  }, [room]);
 
   const onOffer = useCallback(async (event) => {
     if (isCaller.current) return;
@@ -122,7 +82,7 @@ function App() {
       sdp: answer,
       room
     });
-  }, [room, localStream, ]);
+  }, [room]);
 
   const onAnswer = useCallback((event) => {
     pc.current.setRemoteDescription(new RTCSessionDescription(event));
@@ -138,8 +98,8 @@ function App() {
   }, []);
 
   const onFull = useCallback(() => {
-    setRoomInputError('The room is full please choose anthor name');
-  }, [setRoomInputError]);
+    //
+  }, []);
 
   const onIceCandidate = useCallback(({ candidate }) => {
     if (!candidate) return;
@@ -157,8 +117,6 @@ function App() {
   }, []);
 
   useEffect(() => { 
-    if (!inCall) return;
-
     socket.on('created', onCreated);
     socket.on('joined', onJoined);
     socket.on('ready', onReady);
@@ -174,7 +132,6 @@ function App() {
       socket.off();
     }
   }, [
-      inCall,
       onCandidate, 
       onCreated, 
       onJoined, 
@@ -187,62 +144,24 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (roomInputRef?.current) {
-      roomInputRef.current.focus();
-    }
-      
-  }, [roomInputRef])
-
-  function handleOnJoin(event) {
-    event.preventDefault();
-    if (roomInputError) return;
-
-    setInCall(true);
     socket.emit('create_or_join', room);
-  }
+  }, [room]);
 
   return (
-    <div className='max-w-3xl mx-auto p-5 w-full h-full'>
-      <h1 className='text-2xl font-bold text-center my-8'> WebRTC Test </h1>
-      {!inCall ? (
-        <form onSubmit={handleOnJoin} className='d-flex'>
-          <label className="block mb-3">
-            <span className="text-gray-700">Room Name</span>
-            <input 
-              type="text" 
-              placeholder="friends" 
-              value={room}
-              required
-              ref={roomInputRef}
-              {...handlers}
-              className="form-input mt-1 block w-full" 
-            />
-            {roomInputError && <span className="text-red-600 mt-1">{roomInputError}</span>}
-          </label>
-          <button 
-            type='submit' 
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Join
-          </button>
-        </form>
-        ): (
-          <div className='relative'>
-            <video 
-              className='absolute bg-black w-full inset-0'
-              autoPlay
-              ref={remoteVideo}
-            ></video>
-            <video 
-              className='absolute bg-black w-1/3 top-0 left-0 m-4 border-solid border-2 border-gray-600'
-              muted 
-              ref={localVideo}
-              autoPlay
-            ></video>
-          </div>
-        )}
+    <div className='relative'>
+      <video 
+        className='absolute bg-black w-full inset-0'
+        autoPlay
+        ref={remoteVideo}
+      ></video>
+      <video 
+        className='absolute bg-black w-1/3 top-0 left-0 m-4 border-solid border-2 border-gray-600'
+        muted 
+        ref={localVideo}
+        autoPlay
+      ></video>
     </div>
   );
 }
 
-export default App;
+export default Room;
