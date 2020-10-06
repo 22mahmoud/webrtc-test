@@ -1,3 +1,4 @@
+import 'webrtc-adapter';
 import React, { useRef, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import io from 'socket.io-client';
@@ -51,6 +52,7 @@ const Room = () => {
 
   const onReady = useCallback(async () => {
     if (!isCaller.current) return;
+    console.log('offer')
 
     localStream.current.getTracks().forEach(track => {
       pc.current.addTrack(track, localStream.current);
@@ -148,9 +150,9 @@ const Room = () => {
   }, [room]);
 
   return (
-    <div className='relative'>
+    <div className='relative h-full'>
       <video 
-        className='absolute bg-black w-full inset-0'
+        className='absolute bg-black h-full w-full inset-0'
         autoPlay
         ref={remoteVideo}
       ></video>
